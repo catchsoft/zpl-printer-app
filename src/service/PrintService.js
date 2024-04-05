@@ -1,9 +1,25 @@
+import { getItem, setItem } from '@/service/BaseStorageService';
+
 const VENDOR_ID = 2655;
 
 let device;
 let label;
+let broadcast =  new BroadcastChannel('printer')
+let isNotMainTab;
 
 export async function printFunc(text) {
+
+    if (isNotMainTab) {
+        const printer = getItem('printer');
+        if (!printer?.length > 0){
+            await connectPrinter();
+        }
+        else {
+            broadcast.postMessage(text);
+            return
+        }
+    }
+
     if (device) {
         console.log('Printing...');
         const encoder = new TextEncoder();
@@ -20,14 +36,32 @@ export async function printFunc(text) {
 }
 
 
+export async function listenBroadcastForMainTab() {
+    broadcast.onmessage = (event) => {
+        console.log(event.data)
+        if (event.data) {
+            printFunc(event.data)
+        }
+    }
+}
+
+
 export async function connectPrinter() {
-    // Check if we have devices available
+    const printerLabel = document.getElementById('printer');
+
+    const printer = getItem('printer');
+    if (printer?.length > 0) {
+        printerLabel.innerText = `Printer: ${printer}`;
+        isNotMainTab = true;
+        return
+    }
+
+
     let devices = await navigator.usb.getDevices();
     device = devices[0];
     label = document.getElementById('label');
     if (devices.length === 0) {
         try {
-            // Get permission from the user to use their printer
             device = await navigator.usb.requestDevice({filters: [{vendorId: VENDOR_ID}]});
         } catch (e) {
             label.innerText = 'Please give permission to get the USB printer...';
@@ -38,8 +72,18 @@ export async function connectPrinter() {
         await device.open();
         await device.selectConfiguration(1);
         await device.claimInterface(0);
-        const printer = document.getElementById('printer');
-        printer.innerText = `Printer: ${device.productName}`;
+        setItem('printer', device.productName)
+        listenBroadcastForMainTab();
+
+        window.addEventListener('beforeunload', () => {
+            broadcast.postMessage(
+                'close'
+            );
+            setItem('printer', '')
+        })
+
+
+        printerLabel.innerText = `Printer: ${device.productName}`;
     } else {
         console.log("No devices...");
     }
