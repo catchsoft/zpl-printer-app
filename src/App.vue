@@ -3,6 +3,7 @@ import {FilterMatchMode} from 'primevue/api';
 import {onBeforeMount, onMounted, ref} from 'vue';
 import {ProductService} from '@/service/ProductService';
 import {connectPrinter, printFunc} from "@/service/PrintService";
+import { connectScanner } from '@/service/BluetoothService';
 
 
 const products = ref(null);
@@ -18,6 +19,12 @@ onMounted(() => {
   connectPrinter()
   productService.getPrintJson().then((data) => (products.value = data));
 });
+
+
+const handler = (stringVal) => {
+    console.log(stringVal)
+    filters.value['global'].value = stringVal;
+};
 
 
 const initFilters = () => {
@@ -49,6 +56,7 @@ const onKeyDown = (data) => {
 
           <p id="label"></p>
           <Button id="connectbtn" label="Connect" icon="pi pi-plus" class="mr-2" @click="connectPrinter()"/>
+          <Button id="connectscanner" label="Connect Scanner" icon="pi pi-plus" class="mr-2" @click="connectScanner(handler)"/>
           <p id="printer"></p>
         </template>
       </Toolbar>
